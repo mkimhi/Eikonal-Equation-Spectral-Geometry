@@ -141,7 +141,6 @@ class Mesh:
         """
         Returns the area of each vertex
         defined by the one third of all immediately adjacent faces areas.
-        todo: try to do efficient no for loop
         """
         vetrcies_areas = [np.sum(self.areas[np.array(self.vf_adj_mat[i, :] == 1).flatten()]) / 3 for i in
                           range(len(self.v))]
@@ -150,7 +149,6 @@ class Mesh:
     def Vertex_Normals(self, normlize=True):
         """
         return a normal for each vertex as weighted sum over adjacent face normals
-        todo: try to do efficient no for loop
         """
         face_Normals = self.faces_normals(show=False)
         norm_vertcies = np.zeros((len(self.v), 3))
