@@ -30,9 +30,9 @@ def fast_marching():
     tau0_maze = eikonalfm.distance(tau_fm_maze.shape, dx, source_point, indexing="ij")
     # plt.imshow(tau0_maze * tau_fm_maze,origin ="lower")
 
-    #plt.imshow(tau_fm_maze,cmap="jet")
-    #plt.colorbar()
-    #plt.show()
+    plt.imshow(tau_fm_maze,cmap="jet")
+    plt.colorbar()
+    plt.show()
     return tau_fm_maze
 
 
@@ -53,36 +53,6 @@ def maze_solver_fmm(tau_fm):
     plt.imshow(im)
     plt.show()
 
-
-    """gx, gy = np.gradient(tau_fm)
-    target_x,target_y  =  814,383
-    cur_x,cur_y = 8,233
-
-    solve_maze =np.zeros(c.shape)
-    i=0
-    while ((cur_x,cur_y)!=(target_x,target_y)):
-        solve_maze[cur_y,cur_x] = 1
-        dx,dy = -1*gx[cur_y,cur_x] , -1*gy[cur_y,cur_x]
-        den = np.abs(dx) +np.abs(dy)
-        if dx/den > 0.5:
-            cur_x += 1
-        elif dx/den < -0.5:
-            cur_x -= 1
-        elif dy/den > 0.5:
-            cur_y+=1
-        elif dy/den < -0.5:
-            cur_y-=1
-        else: #should not happen
-            cur_y += 1
-        print("cur: {} , {}".format(cur_x,cur_y))
-        i+=1
-        if (i==1000):
-            break
-    plt.imshow(solve_maze)
-    plt.show()"""
-
-
-
 def maze_solver_dij():
     c = np.asanyarray(Image.open('maze.png').convert('1')).astype('double')
     G = nx.Graph()
@@ -93,16 +63,23 @@ def maze_solver_dij():
     hight, width = c.shape
     for i in range(hight-1):
         for j in range(width-1):
-            #todo: add only if next one exist, both i+1 and j+1
-            #G.add_edge()
-    G = nx.from_numpy_matrix(adj_mat)
-    nx.dijkstra_path(G, 0,10)
-
+            if c[i,j] == 1:
+                if c[i+1,j]==1:
+                    G.add_edge((i,j),(i+1,j))
+                if c[i,j+1]==1:
+                    G.add_edge((i, j), (i, j+1))
+    image = np.zeros(c.shape)
+    im=np.array(Image.open('maze.png'))
+    for idx in nx.dijkstra_path(G, (233,8),(383,814)):
+        image[idx] = 1
+    im[image == 1] = 255, 0, 0
+    plt.imshow(im)
+    plt.show()
 
 def main():
     #tau_fm= fast_marching()
     #maze_solver_fmm(tau_fm)
-    maze_solver_dij()
+    #maze_solver_dij()
 
 
 if __name__ == "__main__":
