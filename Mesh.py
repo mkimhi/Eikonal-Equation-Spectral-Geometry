@@ -45,12 +45,11 @@ def numpy_to_pyvista(v, f=None):
 
 
 class Mesh:
-    def __init__(self, file_path):
-        (self.v, self.f) = read_off(file_path)
-        self.v = np.array(self.v)
-        self.f = np.array(self.f)
+    def __init__(self, v,f=None):
+        self.v = np.array(v)
+        self.f = np.array(f)
         # save also the mesh as pyvista for functionality
-        self.pv_mesh = numpy_to_pyvista(self.v, self.f)
+        self.pv_mesh = numpy_to_pyvista(self.v,self.f)
         self.vf_adj_mat = self.vertex_face_adjacency().todense()
         self.areas = self.Face_Areas()
         self.cmap ="rainbow"# plt.cm.get_cmap("viridis", 5)
@@ -91,7 +90,7 @@ class Mesh:
         p.add_mesh(self.pv_mesh, show_edges=True, style='wireframe',stitle="wireframe")
         p.show(screenshot=snap_name)
 
-    def render_pointcloud(self, scalar_function="no",point_size = 5.0, snap_name='point_cloud'):
+    def render_pointcloud(self, scalar_function="no",point_size=5.0, snap_name='point_cloud',subset=None):
         if scalar_function=="no":
             scalar_function = self.vertex_degree()
         mesh = self.pv_mesh
