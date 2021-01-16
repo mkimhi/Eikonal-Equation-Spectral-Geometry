@@ -352,189 +352,194 @@ def DistanceFromCenterOfMass(mesh):
     distance_func = np.linalg.norm(mesh.v - centeroid, axis=1)
     return distance_func
 
-#######################################################################
-#Q6 - Save Adjecny matrices - Done Once
-#######################################################################
-# base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
-# model_num_range = range(100)
-#
-# for model_num in model_num_range:
-#     path = base_path + '{:03}'.format(model_num) + '.ply'
-#     mesh = Mesh(path)
-#     W = weighted_adjacency(v=mesh.v, f=mesh.f, cls='half_cotangent')
-#     scipy.sparse.save_npz('tmp\\W_{}.npz'.format(model_num), W)
-#     print("Adj Matrix For Model:{} - Saved".format(model_num))
-#######################################################################
-#Q6 - descriptors Compartion (Load Data)
-#######################################################################
-desc_k50 = np.load("descs_k50.npy",allow_pickle=True).item()
-desc_k200 = np.load("descs_k200.npy",allow_pickle=True).item()
-descs_list = [desc_k50,desc_k200]
-model_num_range = list(range(100)) #[0,10,20]
-model_num_range.remove(63) #Fault ply
-numOfModelsPerClass = 10
-labels_subjects = [t // numOfModelsPerClass for t in model_num_range]
-labels_poses = [t % numOfModelsPerClass for t in model_num_range]
-descriptors_names = ["H", "HKS", "GPS", "ShapeDNA"]
-k_list = [50,200,1000]
 
-MDS_dict_list = []
-for i,k in enumerate(k_list):
-    MDS_dict = {}
-    if i == 2: #for k=1000 saved already as MDS
-        MDS_dict = np.load('MDS_k1000.npy',allow_pickle=True).item()
-    else:
+
+def q2_main():
+    #######################################################################
+    # Q6 - Save Adjecny matrices - Done Once
+    #######################################################################
+    # base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
+    # model_num_range = range(100)
+    #
+    # for model_num in model_num_range:
+    #     path = base_path + '{:03}'.format(model_num) + '.ply'
+    #     mesh = Mesh(path)
+    #     W = weighted_adjacency(v=mesh.v, f=mesh.f, cls='half_cotangent')
+    #     scipy.sparse.save_npz('tmp\\W_{}.npz'.format(model_num), W)
+    #     print("Adj Matrix For Model:{} - Saved".format(model_num))
+    #######################################################################
+    # Q6 - descriptors Compartion (Load Data)
+    #######################################################################
+    desc_k50 = np.load("descs_k50.npy", allow_pickle=True).item()
+    desc_k200 = np.load("descs_k200.npy", allow_pickle=True).item()
+    descs_list = [desc_k50, desc_k200]
+    model_num_range = list(range(100))  # [0,10,20]
+    model_num_range.remove(63)  # Fault ply
+    numOfModelsPerClass = 10
+    labels_subjects = [t // numOfModelsPerClass for t in model_num_range]
+    labels_poses = [t % numOfModelsPerClass for t in model_num_range]
+    descriptors_names = ["H", "HKS", "GPS", "ShapeDNA"]
+    k_list = [50, 200, 1000]
+
+    MDS_dict_list = []
+    for i, k in enumerate(k_list):
+        MDS_dict = {}
+        if i == 2:  # for k=1000 saved already as MDS
+            MDS_dict = np.load('MDS_k1000.npy', allow_pickle=True).item()
+        else:
+            for desc_name in descriptors_names:
+                embedding = MDS(n_components=2)
+                descs = descs_list[i]
+                MDS_dict[desc_name] = embedding.fit_transform(descs[desc_name])
+        MDS_dict_list.append(MDS_dict)
+    multi2DScatterPlotter(MDS_dict_list, k_list, labels_subjects, figScale=1,
+                          title="Descriptors MDS Colored By Subjects", markerScale=5)
+
+    #######################################################################
+    # Q6 - descriptors Compartion
+    #######################################################################
+    base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
+    k_list = [200]  # [50,200,1000]
+    numOfModelsPerClass = 10
+    model_num_range = list(range(100))  # [0,10,20]
+    model_num_range.remove(63)  # Fault ply
+    labels_subjects = [t // numOfModelsPerClass for t in model_num_range]
+    labels_poses = [t % numOfModelsPerClass for t in model_num_range]
+    labels = [t // numOfModelsPerClass for t in model_num_range]
+    cls_type = 'half_cotangent'
+    t = 1e-4
+    descriptors_names = ["H", "HKS", "GPS", "ShapeDNA"]
+
+    # MDS
+    MDS_dict_list = []
+    for k in k_list:
+        distacne_matrix_dec_dict, descriptores_dict = CreateDescriptorsPerwiseDistanceOfMatrix(base_path,
+                                                                                               model_num_range, k,
+                                                                                               HKS_t=t)
+        np.save('dist_mat_k{}.npy'.format(k), distacne_matrix_dec_dict)
+        MDS_dict = {}
         for desc_name in descriptors_names:
+            # MDS_dict[desc_name]= DiffusionMapsEmbedding(M=distacne_matrix_dec_dict[desc_name], n_dim=2, t=1, kernel_method="Gaussian",
+            #                                             X=None,  n_nei=None, epsilon=None)
             embedding = MDS(n_components=2)
-            descs = descs_list[i]
-            MDS_dict[desc_name] = embedding.fit_transform(descs[desc_name])
-    MDS_dict_list.append(MDS_dict)
-multi2DScatterPlotter(MDS_dict_list,k_list,labels_subjects,figScale=1,title="Descriptors MDS Colored By Subjects",markerScale=5)
+            MDS_dict[desc_name] = embedding.fit_transform(descriptores_dict[desc_name])
 
+        MDS_dict_list.append(MDS_dict)
+        print("K={} - DONE".format(k))
 
-#######################################################################
-#Q6 - descriptors Compartion
-#######################################################################
-base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
-k_list = [200] #[50,200,1000]
-numOfModelsPerClass = 10
-model_num_range = list(range(100)) #[0,10,20]
-model_num_range.remove(63) # Fault ply
-labels_subjects = [t // numOfModelsPerClass for t in model_num_range]
-labels_poses = [t % numOfModelsPerClass for t in model_num_range]
-labels = [t //numOfModelsPerClass for t in model_num_range]
-cls_type = 'half_cotangent'
-t = 1e-4
-descriptors_names = ["H", "HKS", "GPS", "ShapeDNA"]
+    multi2DScatterPlotter(MDS_dict_list, k_list, labels, figScale=1, title="Comparing Descriptors Using MDS On FASUT",
+                          markerScale=5, saveFigName="MDS1.png")
+    pass
 
-#MDS
-MDS_dict_list = []
-for k in k_list:
-    distacne_matrix_dec_dict, descriptores_dict = CreateDescriptorsPerwiseDistanceOfMatrix(base_path, model_num_range, k, HKS_t=t)
-    np.save('dist_mat_k{}.npy'.format(k),distacne_matrix_dec_dict)
-    MDS_dict = {}
-    for desc_name in descriptors_names:
-        # MDS_dict[desc_name]= DiffusionMapsEmbedding(M=distacne_matrix_dec_dict[desc_name], n_dim=2, t=1, kernel_method="Gaussian",
-        #                                             X=None,  n_nei=None, epsilon=None)
-        embedding = MDS(n_components=2)
-        MDS_dict[desc_name] = embedding.fit_transform(descriptores_dict[desc_name])
+    #######################################################################
+    # Q6 - HKS Times Demo
+    #######################################################################
+    base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
+    k = 500
+    model_num_range = range(3)
+    cls_type = 'half_cotangent'
+    start_time = 1e-4
+    end_time = 1
+    time_length = 10
+    times = expspace(start_time, end_time, time_length)
+    sclar_func_list = []
+    model_list = []
+    model_title_list = []
+    func_name_list = ["HKS t={:.3e}".format(t) for t in times]
 
+    for model_num in model_num_range:
+        path = base_path + '{:03}'.format(model_num) + '.ply'
+        mesh = Mesh(path)
 
-    MDS_dict_list.append(MDS_dict)
-    print("K={} - DONE".format(k))
+        HKS_list = [CreateSpectralDescriptor(mesh, descType="HKS", k=k, cls="half_cotangent", t=t) for t in times]
+        HKS_mat = np.array([hks for hks in HKS_list])
+        HKS_mat = HKS_mat.T
+        model_list.append(mesh)
+        sclar_func_list.append(HKS_mat)
+        model_title_list.append("{:03}".format(model_num))
 
-multi2DScatterPlotter(MDS_dict_list,k_list,labels,figScale=1,title="Comparing Descriptors Using MDS On FASUT",markerScale=5,saveFigName="MDS1.png")
-pass
-
-
-#######################################################################
-#Q6 - HKS Times Demo
-#######################################################################
-base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
-k = 500
-model_num_range = range(3)
-cls_type = 'half_cotangent'
-start_time = 1e-4
-end_time = 1
-time_length = 10
-times = expspace(start_time,end_time,time_length)
-sclar_func_list = []
-model_list = []
-model_title_list = []
-func_name_list = ["HKS t={:.3e}".format(t) for t in times]
-
-for model_num in model_num_range:
+    multi3DPloter2(model_list, sclar_func_list, title_modelName_list=model_title_list,
+                   title_funcName_List=func_name_list,
+                   cmap_type='jet', renderType="Surface", fontSize=12)
+    #######################################################################
+    # Q5 - Laplacian applications on various scalar functions
+    #######################################################################
+    base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
+    model_num = 0
+    k_list = [10, 200]
+    cls_type = 'half_cotangent'
     path = base_path + '{:03}'.format(model_num) + '.ply'
     mesh = Mesh(path)
+    laplacian_signed_curveture = LaplacianDiscreteMeanCurveture(v=mesh.v, f=mesh.f, cls=cls_type)
+    distance_from_center = DistanceFromCenterOfMass(mesh)
+    distance_func_list = []
+    curve_func_list = []
+    for k in k_list:
+        curve_hat, normlized_laplacian_curve = LBOAproximation(v=mesh.v, f=mesh.f,
+                                                               scalar_function=laplacian_signed_curveture, k=k,
+                                                               cls='half_cotangent')
+        distance_hat, normlized_laplacian_distance = LBOAproximation(v=mesh.v, f=mesh.f,
+                                                                     scalar_function=distance_from_center, k=k,
+                                                                     cls='half_cotangent')
+        distance_func_list.append(distance_hat)
+        curve_func_list.append(curve_hat)
 
-    HKS_list = [CreateSpectralDescriptor(mesh,descType="HKS",k=k,cls="half_cotangent",t=t) for t in times]
-    HKS_mat = np.array([hks for hks in HKS_list])
-    HKS_mat = HKS_mat.T
-    model_list.append(mesh)
-    sclar_func_list.append(HKS_mat)
-    model_title_list.append("{:03}".format(model_num))
+    distance_func_list.append(distance_from_center)
+    curve_func_list.append(laplacian_signed_curveture)
+    func_distance_mat = np.array([distance_func_list])[0, :, :].T
+    func_curve_mat = np.array([curve_func_list])[0, :, :].T
 
-multi3DPloter2(model_list, sclar_func_list, title_modelName_list = model_title_list,
-                   title_funcName_List =func_name_list,
-               cmap_type='jet',renderType="Surface",fontSize=12)
-#######################################################################
-#Q5 - Laplacian applications on various scalar functions
-#######################################################################
-base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
-model_num = 0
-k_list = [10,200]
-cls_type = 'half_cotangent'
-path = base_path + '{:03}'.format(model_num) + '.ply'
-mesh = Mesh(path)
-laplacian_signed_curveture = LaplacianDiscreteMeanCurveture(v=mesh.v,f=mesh.f, cls=cls_type)
-distance_from_center = DistanceFromCenterOfMass(mesh)
-distance_func_list = []
-curve_func_list = []
-for k in k_list:
-   curve_hat, normlized_laplacian_curve = LBOAproximation(v=mesh.v, f=mesh.f, scalar_function=laplacian_signed_curveture, k=k, cls='half_cotangent')
-   distance_hat, normlized_laplacian_distance = LBOAproximation(v=mesh.v, f=mesh.f, scalar_function=distance_from_center, k=k, cls='half_cotangent')
-   distance_func_list.append(distance_hat)
-   curve_func_list.append(curve_hat)
+    # Normlized Curvature colors for visualtization
+    mean = func_curve_mat.mean(axis=0)
+    std = func_curve_mat.std(axis=0)
+    func_curve_mat = np.clip(func_curve_mat, -std - mean, std + mean)
+    func_curve_mat -= mean
 
-distance_func_list.append(distance_from_center)
-curve_func_list.append(laplacian_signed_curveture)
-func_distance_mat = np.array([distance_func_list])[0,:,:].T
-func_curve_mat = np.array([curve_func_list])[0,:,:].T
+    scalar_func_mat_list = [func_distance_mat, func_curve_mat]
 
-#Normlized Curvature colors for visualtization
-mean = func_curve_mat.mean(axis=0)
-std = func_curve_mat.std(axis=0)
-func_curve_mat = np.clip(func_curve_mat,-std-mean,std +mean)
-func_curve_mat -= mean
+    multi3DPloter2([mesh, mesh], scalar_func_mat_list, title_modelName_list=None,
+                   title_funcName_List=None, cmap_type='jet', renderType="Surface", fontSize=8, saveModelName=None)
 
-scalar_func_mat_list = [func_distance_mat,func_curve_mat]
-
-
-multi3DPloter2([mesh,mesh], scalar_func_mat_list, title_modelName_list = None,
-                   title_funcName_List = None,cmap_type='jet',renderType="Surface",fontSize=8,saveModelName=None)
-
-#######################################################################
-#Q4 - Laplacian and the discrete Mean Curvature:
-#######################################################################
-base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
-model_num = 12
-cls_type = 'half_cotangent'
-path = base_path + '{:03}'.format(model_num) + '.ply'
-model_mesh = Mesh(path)
-laplacian_signed_curveture =  LaplacianDiscreteMeanCurveture(v=model_mesh.v,f=model_mesh.f, cls=cls_type)
-mesh = model_mesh.numpy_to_pyvista(model_mesh.v, model_mesh.f)
-mesh['scalar_func'] = laplacian_signed_curveture
-plotter = pv.Plotter()
-cmap = plt.cm.get_cmap('jet')
-plotter.add_mesh(mesh, scalars='scalar_func', show_edges=False, cmap=cmap)
-plotter.view_xy()
-plotter.show()
-pass
-
-#######################################################################
-#Q3 - Isometry invariance of the Laplacian
-#######################################################################
-numOfModels = 5
-numOfEigs = 6
-cls_type = 'half_cotangent'
-base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
-mesh_eig_tupels_arr = []
-for model_num in range(numOfModels):
+    #######################################################################
+    # Q4 - Laplacian and the discrete Mean Curvature:
+    #######################################################################
+    base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
+    model_num = 12
+    cls_type = 'half_cotangent'
     path = base_path + '{:03}'.format(model_num) + '.ply'
+    model_mesh = Mesh(path)
+    laplacian_signed_curveture = LaplacianDiscreteMeanCurveture(v=model_mesh.v, f=model_mesh.f, cls=cls_type)
+    mesh = model_mesh.numpy_to_pyvista(model_mesh.v, model_mesh.f)
+    mesh['scalar_func'] = laplacian_signed_curveture
+    plotter = pv.Plotter()
+    cmap = plt.cm.get_cmap('jet')
+    plotter.add_mesh(mesh, scalars='scalar_func', show_edges=False, cmap=cmap)
+    plotter.view_xy()
+    plotter.show()
+    pass
+
+    #######################################################################
+    # Q3 - Isometry invariance of the Laplacian
+    #######################################################################
+    numOfModels = 5
+    numOfEigs = 6
+    cls_type = 'half_cotangent'
+    base_path = 'MPI-FAUST\\training\\registrations\\tr_reg_'
+    mesh_eig_tupels_arr = []
+    for model_num in range(numOfModels):
+        path = base_path + '{:03}'.format(model_num) + '.ply'
+        mesh = Mesh(path)
+        eig_vals, eig_vec = laplacian_spectrum(v=mesh.v, f=mesh.f,
+                                               k=numOfEigs, cls=cls_type)
+        mesh_eig_tupels_arr.append((mesh, eig_vec))
+
+    multi3DPloter(mesh_eig_tupels_arr, numOfEigFuncs=numOfEigs - 1, renderType="Surface")
+
+    #######################################################################
+    # Q2 - Check Laplacin Spectrum
+    #######################################################################
+    path = 'tr_reg_000.ply'
     mesh = Mesh(path)
-    eig_vals, eig_vec = laplacian_spectrum(v=mesh.v, f=mesh.f,
-                                           k=numOfEigs, cls=cls_type)
-    mesh_eig_tupels_arr.append((mesh,eig_vec))
-
-multi3DPloter(mesh_eig_tupels_arr,numOfEigFuncs= numOfEigs-1,renderType="Surface")
-
-#######################################################################
-#Q2 - Check Laplacin Spectrum
-#######################################################################
-path = 'tr_reg_000.ply'
-mesh = Mesh(path)
-eig_vals, eig_vec = laplacian_spectrum(mesh.v,mesh.f,3,cls='half_cotangent')
-mesh.render_pointcloud(scalar_func=eig_vec[:,1])
-
-
-pass
+    eig_vals, eig_vec = laplacian_spectrum(mesh.v, mesh.f, 3, cls='half_cotangent')
+    mesh.render_pointcloud(scalar_func=eig_vec[:, 1])
+    pass
