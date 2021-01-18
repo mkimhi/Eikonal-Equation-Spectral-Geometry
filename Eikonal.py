@@ -19,6 +19,14 @@ from Mesh import Mesh
 
 #part 1
 def fast_marching(image,source, show= False,maze=True):
+    """
+    create a matrix of FMM fo image from source
+    :param image:
+    :param source:
+    :param show:
+    :param maze:
+    :return:
+    """
     if maze:
         wall_weight,path_weight = 100,1
         image[image == 1] = wall_weight
@@ -77,6 +85,10 @@ def maze_solver_fmm(im,source,target,show=True,maze=True,steps = 100000):
         plt.show()
     return i,location,traj
 def maze_solver_dij():
+    """
+    dijkstra algorithm for solving maze
+    :return:
+    """
     c = np.asanyarray(Image.open('maze.png').convert('1')).astype('double')
     G = nx.Graph()
     indexes = np.array(np.where(c==1))
@@ -101,6 +113,10 @@ def maze_solver_dij():
 
 #part 2
 def Optical_Path_Length():
+    """
+    Optical_Path_Length to find shortest path to bottom of the pool
+    :return:
+    """
     pool = sio.loadmat("pool.mat")['n']
     pool[pool > 1.01] =5
     pool=  1/ pool#**10
@@ -136,6 +152,13 @@ def Optical_Path_Length():
 #part 3
 
 def segmentation_old(I,sigma=1,epsilon = 2):
+    """
+    segment input image I
+    :param I:
+    :param sigma:
+    :param epsilon:
+    :return:
+    """
     h,w = I.shape[:2]
     #p is a list of tuples of 4 corners of the object: (top left) (top right) (bottom right) (bottom left)
     p = [np.array([10, 10]),np.array([10, w-10]),np.array([h-10, w-10]),np.array([h-10, 10])]
@@ -174,6 +197,13 @@ def segmentation_old(I,sigma=1,epsilon = 2):
         #print(p)
         p=q
 def geo_dist(domain, source, target):
+    """
+    calc deo distances
+    :param domain:
+    :param source:
+    :param target:
+    :return:
+    """
     fmm_result = eikonalfm.fast_marching(domain, target, (1.0, 1.0), 2)
     fmm_grad = np.gradient(fmm_result)
     fmm_grad = list(map(lambda data: np.expand_dims(data, -1), fmm_grad))
@@ -200,6 +230,15 @@ def geo_dist(domain, source, target):
         curr = curr - grad
     return locations
 def segmentation(image, indexes=[0, 1,2,3 ,5, 9], sigma1=120,sigma2=190,dot_size=10):
+    """
+    a version that work of segmentation
+    :param image:
+    :param indexes:
+    :param sigma1:
+    :param sigma2:
+    :param dot_size:
+    :return:
+    """
     line_color = [0, 150, 150]
     p_color = [200, 0, 200]
     q_color = [100, 200, 0]
@@ -248,16 +287,16 @@ def segmentation(image, indexes=[0, 1,2,3 ,5, 9], sigma1=120,sigma2=190,dot_size
 
 
 #part 4
-def save_geodesic(meshes_names):
-    for mesh_name in meshes_names:
-        mesh = read(mesh_name+".ply")
-        v,f= (np.array(mesh.points),np.array(mesh.cells_dict['triangle'],dtype=np.int32))
-        geodesic = gdist.local_gdist_matrix(v.astype(np.float64),f.astype(np.int32))
-        scipy.sparse.save_npz(mesh_name+'.npz', geodesic)
-def embed_geodesic(meshes_names):
+def embed_geodesic(meshes_names,n_dims=2):
+    """
+    create and save geodestics- run in colab and download files
+    :param meshes_names:
+    :param n_dims:
+    :return:
+    """
     for mesh_name in meshes_names:
         geodesic = scipy.sparse.load_npz(mesh_name+'.npz')
-        embedding = MDS(n_components=2)
+        embedding = MDS(n_dims=2)
         geodesic = geodesic.todense()
         MDS_geodestic = embedding.fit_transform(geodesic)
         spherical_MDS_gerdestic = np.cos(MDS_geodestic)
@@ -265,46 +304,51 @@ def embed_geodesic(meshes_names):
         scipy.sparse.save_npz(mesh_name + '_sphere_MDS' + '.npz', csr_matrix(spherical_MDS_gerdestic))
 
 
-def compute_errors(path, method, method_str='', embedded_dim=2, snap=True):
-    # file_str = path.split('.')[0]
-    # mesh_str = file_str.split('/')[1]
-
+def compute_errors(mesh_name, mds, mds_str='mds', embedded_dim=2, snap=True):
+    """
+    solve 1.4 to calc MDS and geodestic and return normed distance
+    :param mesh_name:
+    :param mds:
+    :param mds_str:
+    :param embedded_dim:
+    :param snap:
+    :return:
+    """
     # Load mesh from .ply file
-    ply = meshio.read(path + ".ply")
-    vertices = ply.points
-    faces = ply.cells_dict['triangle']
+    ply = meshio.read(mesh_name + ".ply")
+    v,f = ply.points,ply.cells_dict['triangle']
 
     if snap:
-        geodesics_dist = scipy.sparse.load_npz(path + '.npz').todense()
+        geodesics_dist = scipy.sparse.load_npz(mesh_name + '.npz').todense()
     else:
-        geodesics_dist = gdist.local_gdist_matrix(vertices.astype(np.float64), faces.astype(np.int32))
-        scipy.sparse.save_npz(path + '.npz', csr_matrix(geodesics_dist))
+        geodesics_dist = gdist.local_gdist_matrix(v.astype(np.float64), f.astype(np.int32))
+        scipy.sparse.save_npz(mesh_name + '.npz', csr_matrix(geodesics_dist))
     # to present original mesh
     """mesh_class = Mesh(v=vertices, f=faces)
     mesh_class.render_pointcloud(scalar_function=geodesics_dist[:],snap_name = path + " Mesh")"""
 
     if snap:
-        if method_str == 'mds':
-            emb_coordinates = scipy.sparse.load_npz(path + '_MDS_NO_G.npz').todense()
+        if mds_str == 'mds':
+            emb_coordinates = scipy.sparse.load_npz(mesh_name + '_MDS_NO_G.npz').todense()
             emb_coordinates = np.abs(emb_coordinates)
         # for sphere
         else:
-            emb_coordinates = scipy.sparse.load_npz(path + '_SPHER_MDS_NO_G.npz').todense()
+            emb_coordinates = scipy.sparse.load_npz(mesh_name + '_SPHER_MDS_NO_G.npz').todense()
             emb_coordinates = np.abs(emb_coordinates)
             out = np.zeros((emb_coordinates.shape[0], 3))
             out[:, :2] = +emb_coordinates
             emb_coordinates = out
-            embedded_geodesics_dist = scipy.sparse.load_npz(path + method_str + '.npz').todense()
+            embedded_geodesics_dist = scipy.sparse.load_npz(mesh_name + mds_str + '.npz').todense()
     else:
-        emb_coordinates = method(geodesics_dist, embedded_dim)
+        emb_coordinates = mds(geodesics_dist, embedded_dim)
         embedded_geodesics_dist = gdist.local_gdist_matrix(np.array(emb_coordinates).astype(np.float64),
-                                                           faces.astype(np.int32))
-        scipy.sparse.save_npz(path + method_str + '.npz', csr_matrix(embedded_geodesics_dist))
+                                                           f.astype(np.int32))
+        scipy.sparse.save_npz(mesh_name + mds_str + '.npz', csr_matrix(embedded_geodesics_dist))
     # present the mesh of embeded:
     """embedded_mesh = Mesh(v=emb_coordinates, f=ply.cells_dict['triangle'])
     embedded_mesh.render_pointcloud(scalar_function=np.sum(embedded_geodesics_dist,axis=1)/len(vertices), snap_name = path + " Mesh using " + method_str)"""
     err = np.linalg.norm(geodesics_dist - embedded_geodesics_dist)
-    return err / len(vertices)
+    return err / len(v)
 
 def spectral_embedding(data, out_dims):
     e_vlas, e_vecs = np.linalg.eig(data)
@@ -314,7 +358,7 @@ def spectral_embedding(data, out_dims):
     e_vlas , e_vecs= e_vlas[-out_dims:], e_vecs[:, -out_dims:]
     return e_vecs @ np.power(np.diag(e_vlas), 0.5)
 
-def mds(data, out_dims, **kwargs):
+def reg_mds(data, out_dims, **kwargs):
     n = data.shape[0]
     J = np.identity(n) - (1 / n) * np.ones_like(data)
     out = -0.5 * J * (data ** 2) * J
@@ -323,12 +367,17 @@ def mds(data, out_dims, **kwargs):
 
 def cannonical_shape_MDS(meshes_names):
     for mesh_name in meshes_names:
-        err1 = compute_errors(mesh_name, mds, 'mds', 3)
+        err1 = compute_errors(mesh_name, reg_mds, 'mds', 3)
         print('normed error: {0}'.format(err1))
 
 
 #   q5
 def gen_f(s):
+    """
+    create f for new grath to create mesh
+    :param s:
+    :return:
+    """
     f=[]
     f.append([0,len(s)-1,len(s)])
     f.append([0,1,len(s)])
@@ -336,10 +385,16 @@ def gen_f(s):
         f.append([i,i+1,i+2])
     return f
 def Farthest_Point_Sampling(mesh_name,n):
+    """
+    add the new farest point to set and print n out of all of mesh
+    :param mesh_name:
+    :param n:
+    :return:
+    """
     mesh = read(mesh_name + ".ply")
     v, f = (np.array(mesh.points), np.array(mesh.cells_dict['triangle'], dtype=np.int32))
+    geodesics_dist = gdist.local_gdist_matrix(v.astype(np.float64), f.astype(np.int32))
 
-    v_stable = np.array(mesh.points)
     mesh = Mesh(v=v,f=f)
     mesh.render_pointcloud(scalar_function=mesh.gaussianCurvature())
 
@@ -349,20 +404,19 @@ def Farthest_Point_Sampling(mesh_name,n):
         max_dist = 0
         selected_v = None
         for i,v_i in enumerate(v):
-            min_by_s=1e9
+            min_by_s = np.inf
             for s_i in s: #get minimum ovver all s_i
-                dist = np.linalg.norm(v[s_i]-v_i)
+                dist = geodesics_dist[s_i][v_i]
                 if dist < min_by_s:
                     min_by_s = dist
             if min_by_s > max_dist:
                 max_dist = min_by_s
-                selected_idx = i
+                selected_v = v_i
 
-        print("found: ", len(s))
-        #v = np.delete(v,selected_v) #dont iterate v over this node anymore
-        #f= delete_from_f(f,v_i,v_stable)
-        s.append(selected_idx)
-    mesh = Mesh(v=v[np.array(s)], f=f)
+        v = np.delete(v,selected_v) #dont iterate v over this node anymore
+        s.append(selected_v)
+    f_new=gen_f(s)
+    mesh = Mesh(v=v[np.array(s)], f=f_new)
     mesh.render_pointcloud(scalar_function=mesh.gaussianCurvature())
 
 def q1_main():
@@ -378,13 +432,12 @@ def q1_main():
     # 1.3
     easy_images = [np.array(Image.open('ball.png')), np.array(Image.open('CORONA.png'))]
     images = [np.array(Image.open('duck.png')),np.array(Image.open('dog.png')) ]
-    # for im in easy_images:
-    segmentation(im)
+    for im in easy_images:
+        segmentation(im)
     meshes_names= ['tr_reg_000' , 'tr_reg_001']
     # 1.4
-    save_geodesic(meshes_names)
-    embed_geodesic(meshes_names)
+    #embed_geodesic(meshes_names)
     cannonical_shape_MDS(meshes_names)
     # 1.5
     hands_up = 'tr_reg_079'
-    Farthest_Point_Sampling(hands_up,2000)
+    Farthest_Point_Sampling(hands_up,200)
